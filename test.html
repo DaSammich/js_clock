@@ -7,9 +7,9 @@
 <body>
 
 
-enter your minutes: <input type='text'> <button>Start Countdown</button>
+enter your minutes: <input id='text_input' type='text'> <button id="starter">Start Countdown</button>
 <br>
-<span id='date'>0d 0h 0m 0s</span>
+<span id='date'>00d 00h 00m 00s</span>
 <br>
 <button id='start'>start</button>
 <button id='stop'>pause</button>
@@ -26,7 +26,17 @@ enter your minutes: <input type='text'> <button>Start Countdown</button>
 var old = new Date();
 var on = true;
 var total = 0;
-var interval = null;
+var interval;
+var ms_left = (25);
+
+function create_stopwatch(mins) {
+
+
+}
+
+function min_to_ms(mins) {
+	return mins * 60 * 1000;
+}
 
 function pause(interval) {
 	if (on) {
@@ -39,17 +49,33 @@ function pause(interval) {
 
 function unpause(interval) {
 	if (!on) {
+		// start over and add in the cumulative time
 		old = new Date();
 		start_timer();
 		on = true;
-		// start over and add in the cumulative time
 	}
+}
+
+function add_zero(unit) {
+	return unit.toString().length < 2 ?
+		'0' + unit.toString() : 
+		unit;
+}
+
+function init() {
+	// competely reset
+	old = new Date();
+	total = 0;
+	start_timer();
 }
 
 function start_timer() {
 	interval = setInterval(function() {
+	
+	// count the cummulative seconds in ms
 	var moving = new Date().getTime();
 	distance = moving - old + total;
+	distance = ms_left - distance;
 	
 	var sec = Math.floor(distance/1000 % 60);
 	var min = Math.floor(distance / 1000 / 60 % 60)
@@ -57,15 +83,21 @@ function start_timer() {
 	var days = Math.floor(distance / 1000 / 60 / 60 / 24);
 	
 	if (on) {
-		document.getElementById('date').innerHTML = days + 'd ' + hrs +'h ' + min + 'm ' + sec + 's ';
+		document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
 	}
 	
 	},250);
 }
 
 document.getElementById("start").addEventListener("click", unpause);
-document.getElementById("stop").addEventListener("click", pause)
-start_timer();
+document.getElementById("stop").addEventListener("click", pause);
+document.getElementById("starter").addEventListener("click", function() {
+	// grab the value and start your timer
+	ms_left = document.getElementById("text_input").value;
+	ms_left = min_to_ms(ms_left);
+	init();
+});
+
 
 </script>
 
