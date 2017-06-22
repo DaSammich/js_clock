@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-</style>
+<script
+	src="https://code.jquery.com/jquery-3.2.1.min.js"
+	integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+	crossorigin="anonymous">
+</script>
 </head>
 <body>
 
 
-enter your minutes: <input id='text_input' type='text'> <button id="starter">Start Countdown</button>
+enter your minutes: <input id='text_input' type='text'> <button id="set">Set</button>
 <br>
 <span id='date'>00d 00h 00m 00s</span>
 <br>
-<button id='start'>start</button>
-<button id='stop'>pause</button>
+<button id="pause">pause</button>
+<button id="plus">+</button>
+<button id="minus">-</button>
+
 
 
 
@@ -23,36 +28,49 @@ enter your minutes: <input id='text_input' type='text'> <button id="starter">Sta
 
 <script>
 
+// Note: always clear interval before starting a new one in start_timer()
+
+// initialize the globals within this object
 var old = new Date();
 var on = true;
-var total = 0;
+var total = 0;					// keep track of the total time accumulated
 var interval;
-var ms_left = (25);
+var ms_left = null;						// how much time left from the start in ms
+var inc = 0;						// auxilary for + / - function
+var last_moving;  	// keep track of last position of moving for pause function
 
-function create_stopwatch(mins) {
-
-
-}
 
 function min_to_ms(mins) {
 	return mins * 60 * 1000;
 }
 
-function pause(interval) {
-	if (on) {
-		on = false;
-		// save the cummulative time
-		total += new Date().getTime() - old;
-		clearInterval(interval);
+function pause() {
+	if (!(ms_left === null)) {
+		if (on) {
+			on = false;
+			// save the cummulative pause time
+			total += new Date().getTime() - old;
+			clearInterval(interval);
+			$("#pause").html("resume");
+		} 
+		else {
+			unpause();
+		}
 	}
 }
 
 function unpause(interval) {
+	if (!(ms_left === null)) {
+	
+	}
+
 	if (!on) {
 		// start over and add in the cumulative time
 		old = new Date();
+		clearInterval(interval);
 		start_timer();
 		on = true;
+		$("#pause").html("pause");
 	}
 }
 
@@ -62,41 +80,106 @@ function add_zero(unit) {
 		unit;
 }
 
+// initialize your timer 
 function init() {
-	// competely reset
+	// competely reset globals
 	old = new Date();
 	total = 0;
-	start_timer();
+	
+	// if it's paused, we want to display initial time
+	if (!on) {
+		var sec = Math.floor(ms_left/1000 % 60);
+		var min = Math.floor(ms_left / 1000 / 60 % 60);
+		var hrs = Math.floor(ms_left / 1000 / 60 / 60 % 24);
+		var days = Math.floor(ms_left / 1000 / 60 / 60 / 24);
+		$("#date").html(add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ');
+	} else {
+		// make sure to clear interval before starting a new one
+		clearInterval(interval);
+		start_timer();
+	}
 }
 
+// the timer object / function
+// only displays when the timer is set to "on"
 function start_timer() {
-	interval = setInterval(function() {
 	
+	interval = setInterval(function() {
+		
 	// count the cummulative seconds in ms
 	var moving = new Date().getTime();
+	last_moving = moving;							// keep track of last position for pause
 	distance = moving - old + total;
-	distance = ms_left - distance;
+	distance = ms_left - distance - inc;
 	
+	// end the timer once it hits 0
+		
 	var sec = Math.floor(distance/1000 % 60);
 	var min = Math.floor(distance / 1000 / 60 % 60)
 	var hrs = Math.floor(distance / 1000 / 60 / 60 % 24);
 	var days = Math.floor(distance / 1000 / 60 / 60 / 24);
 	
+	// Can't use update_display() here because we need to check for 'on'
+	// Also check for negative number
 	if (on) {
 		document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
 	}
-	
-	},250);
+	console.log(interval);
+		
+	}, 250);
 }
 
-document.getElementById("start").addEventListener("click", unpause);
-document.getElementById("stop").addEventListener("click", pause);
-document.getElementById("starter").addEventListener("click", function() {
-	// grab the value and start your timer
-	ms_left = document.getElementById("text_input").value;
-	ms_left = min_to_ms(ms_left);
-	init();
-});
+// updates the display with most current time on call
+// displays whether it is paused or not
+function update_display() {
+	// last_moving = new Date().getTime();
+	distance = last_moving - old + total;
+	distance = ms_left - distance - inc;
+	
+	var sec = Math.floor(distance/1000 % 60);
+	var min = Math.floor(distance / 1000 / 60 % 60);
+	var hrs = Math.floor(distance / 1000 / 60 / 60 % 24);
+	var days = Math.floor(distance / 1000 / 60 / 60 / 24);
+	
+	$("#date").html(add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ');
+}
+
+function inc() {
+	// add 60 seconds converted from ms
+	alert('works');
+	inc -= 1000;
+	update_display();
+}
+
+
+function dec() {
+	// subtract 60 seconds converted from ms
+	inc += 1000;
+	update_display();
+}
+
+$(document).ready(function() {
+	
+	$("#plus").click(inc);
+	$("#minus").click(dec);
+	$("#pause").click(pause);
+	
+	// the actual event handlers for timer
+	$("#set").click(function() {
+		ms_left = $("#text_input").val();
+		ms_left = min_to_ms(ms_left);
+		if (ms_left > 0) { init(); }
+	})
+	$("#text_input").on("keyup", function(e) {
+		if (e.keyCode == '13') {
+			ms_left = $("#text_input").val();
+			ms_left = min_to_ms(ms_left);
+			if (ms_left > 0) { init(); }
+		}
+	})
+
+})
+
 
 
 </script>
