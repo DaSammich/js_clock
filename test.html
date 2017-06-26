@@ -30,14 +30,15 @@ enter your minutes: <input id='text_input' type='text'> <button id="set">Set</bu
 
 // Note: always clear interval before starting a new one in start_timer()
 
-// initialize the globals within this object
-var old = new Date();
-var on = true;
-var total = 0;					// keep track of the total time accumulated
-var interval;
-var ms_left = null;						// how much time left from the start in ms
-var inc = 0;						// auxilary for + / - function
-var last_moving;  	// keep track of last position of moving for pause function
+// initialize the globals within this object context scope
+var old = new Date();		
+var on = true;					// paused or not?
+var total = 0;					// keep track of the total time elasped
+var interval;						// need global access to clear anywhere within this timer
+var ms_left = null;			// constant final goal time to meet in ms
+var inc = 0;						// auxilary total for + / - function
+var fake_inc = 0;				// auxilary total for display + / - during pause state
+var last_distance;  		// keep track of last distance (aka time) for pause state
 
 
 function min_to_ms(mins) {
@@ -45,10 +46,11 @@ function min_to_ms(mins) {
 }
 
 function pause() {
+	// check if initialized - can't pause/unpause if it's not
 	if (!(ms_left === null)) {
 		if (on) {
 			on = false;
-			// save the cummulative pause time
+			// save the cummulative passed time
 			total += new Date().getTime() - old;
 			clearInterval(interval);
 			$("#pause").html("resume");
@@ -60,10 +62,6 @@ function pause() {
 }
 
 function unpause(interval) {
-	if (!(ms_left === null)) {
-	
-	}
-
 	if (!on) {
 		// start over and add in the cumulative time
 		old = new Date();
@@ -85,6 +83,7 @@ function init() {
 	// competely reset globals
 	old = new Date();
 	total = 0;
+	inc = 0;
 	
 	// if it's paused, we want to display initial time
 	if (!on) {
@@ -102,6 +101,7 @@ function init() {
 
 // the timer object / function
 // only displays when the timer is set to "on"
+// creates a new js interval
 function start_timer() {
 	
 	interval = setInterval(function() {
@@ -111,13 +111,15 @@ function start_timer() {
 	last_moving = moving;							// keep track of last position for pause
 	distance = moving - old + total;
 	distance = ms_left - distance - inc;
+	last_distance = distance;					// track the distance for pause display
 	
-	// end the timer once it hits 0
+	// end the timer once it hits 0 *TODO
 		
 	var sec = Math.floor(distance/1000 % 60);
 	var min = Math.floor(distance / 1000 / 60 % 60)
 	var hrs = Math.floor(distance / 1000 / 60 / 60 % 24);
 	var days = Math.floor(distance / 1000 / 60 / 60 / 24);
+	last_distance = distance
 	
 	// Can't use update_display() here because we need to check for 'on'
 	// Also check for negative number
@@ -125,56 +127,79 @@ function start_timer() {
 		document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
 	}
 	console.log(interval);
-		
+	
+	// reset the fake inc for the pause state to display correctly
+	fake_inc = 0
+	
 	}, 250);
 }
 
 // updates the display with most current time on call
 // displays whether it is paused or not
 function update_display() {
-	// last_moving = new Date().getTime();
-	distance = last_moving - old + total;
-	distance = ms_left - distance - inc;
-	
-	var sec = Math.floor(distance/1000 % 60);
-	var min = Math.floor(distance / 1000 / 60 % 60);
-	var hrs = Math.floor(distance / 1000 / 60 / 60 % 24);
-	var days = Math.floor(distance / 1000 / 60 / 60 / 24);
-	
-	$("#date").html(add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ');
+	if (on) {
+		var sec = Math.floor(last_distance/1000 % 60);
+		var min = Math.floor(last_distance / 1000 / 60 % 60);
+		var hrs = Math.floor(last_distance / 1000 / 60 / 60 % 24);
+		var days = Math.floor(last_distance / 1000 / 60 / 60 / 24);
+		
+		$("#date").html(add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ');
+	} 
+	// if the timer is paused we need new logic
+	else {
+		// inc is global, it will accumulate - use fake_inc instead for pause state
+		
+		fake_last_distance = last_distance - fake_inc;
+		
+		var sec = Math.floor(fake_last_distance/1000 % 60);
+		var min = Math.floor(fake_last_distance / 1000 / 60 % 60);
+		var hrs = Math.floor(fake_last_distance / 1000 / 60 / 60 % 24);
+		var days = Math.floor(fake_last_distance / 1000 / 60 / 60 / 24);
+		
+		$("#date").html(add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ');
+	}
 }
 
-function inc() {
+function plus() {
 	// add 60 seconds converted from ms
-	alert('works');
 	inc -= 1000;
+	// reset the fake inc during the timer 
+	if (!on) {
+		fake_inc -= 1000;
+	} 
 	update_display();
 }
 
 
-function dec() {
+function minus() {
 	// subtract 60 seconds converted from ms
 	inc += 1000;
-	update_display();
+	
+	// we must reset the fake inc during the timer
+	if (!on) {
+		fake_inc += 1000;
+	} 
+	update_display(); 
+}
+
+
+function start_with_mins_left() {
+	ms_left = $("#text_input").val();
+	ms_left = min_to_ms(ms_left);
+	if (ms_left > 0) { init(); }
 }
 
 $(document).ready(function() {
 	
-	$("#plus").click(inc);
-	$("#minus").click(dec);
+	$("#plus").click(plus);
+	$("#minus").click(minus);
 	$("#pause").click(pause);
 	
 	// the actual event handlers for timer
-	$("#set").click(function() {
-		ms_left = $("#text_input").val();
-		ms_left = min_to_ms(ms_left);
-		if (ms_left > 0) { init(); }
-	})
+	$("#set").click(start_with_mins_left)
 	$("#text_input").on("keyup", function(e) {
 		if (e.keyCode == '13') {
-			ms_left = $("#text_input").val();
-			ms_left = min_to_ms(ms_left);
-			if (ms_left > 0) { init(); }
+			start_with_mins_left();
 		}
 	})
 
