@@ -40,7 +40,7 @@ var inc = 0;						// auxilary total for + / - function
 var fake_inc = 0;				// auxilary total for display + / - during pause state
 var last_distance;  		// keep track of last distance (aka time, for pause state)
 												// it is the most updated form of total time left in ms
-												// can think of it as distance left to cover
+												// can think of it as distance left until reaching goal
 
 
 
@@ -84,14 +84,25 @@ function start_timer() {
 	
 	// Can't use update_display_with_distance() here because need check for 'on'
 	// Also need check for negative number or 0
-	// end the timer once it hits 0 * TODO
 	if (on) {
+		if (distance >= 0) {
 		document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
+		}
+		else {
+			// end the timer once it hits 0
+			alert("Timer has finished!");
+			clearInterval(interval);
+			ms_left = null;					// force reinitialization
+			// reset the timer to zero
+			document.getElementById('date').innerHTML = add_zero(0) + 'd ' + add_zero(0) +'h ' + add_zero(0) + 'm ' + add_zero(0) + 's ';
+
+		}
 	}
-	console.log(interval);		// console prints the refresh rate of timer
+	console.log(interval);		// console prints the refresh rate of timer on success
 	
 	// reset the fake inc for the pause state to display correctly
-	// this works because it's gauranteed the last time of 'refresh'
+	// this works because it's gauranteed a last time of 'refresh'
+	// before actually changing states
 	fake_inc = 0;
 	
 	}, 250);
@@ -100,11 +111,22 @@ function start_timer() {
 // takes in a distance and updates the display with it
 // does not check current state
 function update_display_with_distance(dist) {
-	var sec = Math.floor(dist/1000 % 60);
-	var min = Math.floor(dist / 1000 / 60 % 60)
-	var hrs = Math.floor(dist / 1000 / 60 / 60 % 24);
-	var days = Math.floor(dist / 1000 / 60 / 60 / 24);
-	document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
+	// only display the date when dist is >= 0
+	if (dist >= 0) {
+		var sec = Math.floor(dist/1000 % 60);
+		var min = Math.floor(dist / 1000 / 60 % 60)
+		var hrs = Math.floor(dist / 1000 / 60 / 60 % 24);
+		var days = Math.floor(dist / 1000 / 60 / 60 / 24);
+		document.getElementById('date').innerHTML = add_zero(days) + 'd ' + add_zero(hrs) +'h ' + add_zero(min) + 'm ' + add_zero(sec) + 's ';
+	} else {
+		// timer has run out
+		ms_left = null;			// force reinitialization
+		// reset pause button, state, display
+		$("#pause").html("pause");
+		on = true;
+		alert("Time has run out!");
+
+	}
 }
 
 // updates the display with most current time on call
@@ -125,25 +147,29 @@ function update_display() {
 
 // handle the + - buttons
 function plus() {
-	// add 60 seconds converted from ms
-	inc -= 1000;
-	// reset the fake inc during the timer 
-	if (!on) {
-		fake_inc -= 1000;
+	// only allowed if timer initialized already
+	if (!(ms_left === null)) {
+		// add 60 seconds converted from ms
+		inc -= 1000;
+		// reset the fake inc during the timer 
+		if (!on) {
+			fake_inc -= 1000;
+		} 
+		update_display();
 	} 
-	update_display();
 }
 
 
 function minus() {
-	// subtract 60 seconds converted from ms
-	inc += 1000;
-	
-	// we must reset the fake inc during the timer
-	if (!on) {
-		fake_inc += 1000;
-	} 
-	update_display(); 
+	if (!(ms_left === null)) {
+		// subtract 60 seconds converted from ms
+		inc += 1000;
+		// we must reset the fake inc during the timer
+		if (!on) {
+			fake_inc += 1000;
+		} 
+		update_display();
+	}
 }
 
 
@@ -178,7 +204,7 @@ function pause() {
 
 function unpause(interval) {
 	if (!on) {
-		// start over and add in the cumulative time
+		// restart timer and add in the cumulative time
 		old = new Date();
 		clearInterval(interval);
 		start_timer();
